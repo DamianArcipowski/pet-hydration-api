@@ -12,8 +12,8 @@ CREATE TABLE devices (
     mac_address VARCHAR(17) NOT NULL UNIQUE,
     user_id     INT NOT NULL,
     name        VARCHAR(50),
-    bowl_weight_g     FLOAT NOT NULL, 
-    bowl_capacity_ml  INT NOT NULL,
+    bowl_weight_g     FLOAT NOT NULL DEFAULT 0, 
+    bowl_capacity_ml  INT NOT NULL DEFAULT 0,
     fill_target_pct   FLOAT DEFAULT 0.80,
     wifi_ssid   VARCHAR(80),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
