@@ -1,6 +1,6 @@
 import re
 import json
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, HTTPException, Header, Request, Query
 from database import get_db, get_cursor
 
 router = APIRouter(tags=["readings"])
@@ -41,3 +41,24 @@ async def post_reading(request: Request, x_device_mac=Header(..., alias="x-devic
                 "VALUES (%s, %s, %s, %s)",
                 (device_id, weight_g, valve_open, tank_low),
             )
+
+@router.get("/devices/{device_id}/readings/latest")
+def get_latest_reading(device_id: int):
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(
+                "SELECT id, device_id, weight_g, valve_open, tank_low, recorded_at "
+                "FROM readings WHERE device_id = %s ORDER BY recorded_at DESC LIMIT 1",
+                (device_id,),
+            )
+            row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="No readings yet")
+    return {
+        "id": row["id"],
+        "device_id": row["device_id"],
+        "weight_g": row["weight_g"],
+        "valve_open": row["valve_open"],
+        "tank_low": row["tank_low"],
+        "recorded_at": str(row["recorded_at"]),
+    }

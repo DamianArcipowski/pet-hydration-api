@@ -6,6 +6,29 @@ router = APIRouter(tags=["devices"])
 
 MAC_REGEX = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
+@router.get("/devices")
+def list_devices(user_id=Query(0)):
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(
+                "SELECT id, mac_address, name, bowl_weight_g, bowl_capacity_ml, fill_target_pct, wifi_ssid "
+                "FROM devices WHERE user_id = %s ORDER BY id",
+                (user_id,),
+            )
+            rows = cur.fetchall()
+    return [
+        {
+            "id": r["id"],
+            "mac_address": r["mac_address"],
+            "name": r["name"],
+            "bowl_weight_g": r["bowl_weight_g"],
+            "bowl_capacity_ml": r["bowl_capacity_ml"],
+            "fill_target_pct": r["fill_target_pct"],
+            "wifi_ssid": r["wifi_ssid"],
+        }
+        for r in rows
+    ]
+
 @router.get("/pending-devices")
 def list_pending():
     with get_db() as conn:
@@ -58,3 +81,72 @@ async def claim_pending(request: Request, user_id=Query(0)):
                 "fill_target_pct": row["fill_target_pct"],
                 "wifi_ssid": row["wifi_ssid"],
             }
+
+@router.post("/devices/{device_id}/tare", status_code=204)
+def tare_device(device_id: int, user_id: int = Query(0)):
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(
+                "UPDATE devices SET pending_command = 'tare' WHERE id = %s AND user_id = %s",
+                (device_id, user_id),
+            )
+
+@router.patch("/devices/{device_id}")
+async def update_device(device_id: int, request: Request, user_id: int = Query(0)):
+    body = await request.json()
+    allowed = {"name", "bowl_capacity_ml", "fill_target_pct", "wifi_ssid"}
+    fields = {k: v for k, v in body.items() if k in allowed and v is not None}
+
+    if not fields:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    set_clause = ", ".join(f"{k} = %s" for k in fields)
+    values = list(fields.values()) + [device_id, user_id]
+
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(f"UPDATE devices SET {set_clause} WHERE id = %s AND user_id = %s", values)
+            cur.execute(
+                "SELECT id, mac_address, name, bowl_weight_g, bowl_capacity_ml, fill_target_pct, wifi_ssid "
+                "FROM devices WHERE id = %s",
+                (device_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Device not found")
+            return {
+                "id": row["id"],
+                "mac_address": row["mac_address"],
+                "name": row["name"],
+                "bowl_weight_g": row["bowl_weight_g"],
+                "bowl_capacity_ml": row["bowl_capacity_ml"],
+                "fill_target_pct": row["fill_target_pct"],
+                "wifi_ssid": row["wifi_ssid"],
+            }
+            
+@router.get("/devices/config")
+def get_device_config(x_device_mac=Query(...)):
+    mac = x_device_mac.upper().strip()
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(
+                "SELECT id, pending_command, bowl_weight_g, bowl_capacity_ml, fill_target_pct, calibration "
+                "FROM devices WHERE mac_address = %s",
+                (mac,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return {"command": None}
+
+            command = row["pending_command"]
+            if command:
+                cur.execute("UPDATE devices SET pending_command = NULL WHERE id = %s", (row["id"],))
+
+    return {
+        "bowl_weight_g": row["bowl_weight_g"],
+        "bowl_capacity_ml": row["bowl_capacity_ml"],
+        "fill_target_pct": row["fill_target_pct"],
+        "calibration": row["calibration"],
+        "command": command,
+    }
+    
