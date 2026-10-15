@@ -125,15 +125,18 @@ async def update_device(device_id: int, request: Request, user_id: int = Query(0
             }
             
 @router.get("/devices/config")
-def get_device_config(x_device_mac=Query(...)):
+def get_device_config(x_device_mac: str = Query(...), wifi_ssid: str = Query(None)):
     mac = x_device_mac.upper().strip()
     with get_db() as conn:
         with get_cursor(conn) as cur:
+            if wifi_ssid:
+                cur.execute(
+                    "UPDATE devices SET wifi_ssid = %s WHERE mac_address = %s",
+                    (wifi_ssid, mac),
+                )
             cur.execute(
                 "SELECT id, pending_command, bowl_weight_g, bowl_capacity_ml, fill_target_pct, calibration "
-                "FROM devices WHERE mac_address = %s",
-                (mac,),
-            )
+                "FROM devices WHERE mac_address = %s", (mac,))
             row = cur.fetchone()
             if not row:
                 return {"command": None}
@@ -143,10 +146,21 @@ def get_device_config(x_device_mac=Query(...)):
                 cur.execute("UPDATE devices SET pending_command = NULL WHERE id = %s", (row["id"],))
 
     return {
-        "bowl_weight_g": row["bowl_weight_g"],
+        "bowl_weight_g":    row["bowl_weight_g"],
         "bowl_capacity_ml": row["bowl_capacity_ml"],
-        "fill_target_pct": row["fill_target_pct"],
-        "calibration": row["calibration"],
-        "command": command,
+        "fill_target_pct":  row["fill_target_pct"],
+        "calibration":      row["calibration"],
+        "command":          command,
     }
-    
+
+@router.post("/devices/tare-result", status_code=204)
+async def tare_result(request: Request, x_device_mac: str = Query(...)):
+    mac = x_device_mac.upper().strip()
+    body = await request.json()
+    bowl_weight_g = body.get("bowl_weight_g", 0)
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(
+                "UPDATE devices SET bowl_weight_g = %s WHERE mac_address = %s",
+                (bowl_weight_g, mac),
+            )
