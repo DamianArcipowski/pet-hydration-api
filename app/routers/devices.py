@@ -94,7 +94,7 @@ def tare_device(device_id: int, user_id: int = Query(0)):
 @router.patch("/devices/{device_id}")
 async def update_device(device_id: int, request: Request, user_id: int = Query(0)):
     body = await request.json()
-    allowed = {"name", "bowl_capacity_ml", "fill_target_pct", "wifi_ssid"}
+    allowed = {"name", "bowl_capacity_ml", "fill_low_pct", "fill_target_pct", "wifi_ssid"}
     fields = {k: v for k, v in body.items() if k in allowed and v is not None}
 
     if not fields:
@@ -135,7 +135,7 @@ def get_device_config(x_device_mac: str = Query(...), wifi_ssid: str = Query(Non
                     (wifi_ssid, mac),
                 )
             cur.execute(
-                "SELECT id, pending_command, bowl_weight_g, bowl_capacity_ml, fill_target_pct, calibration "
+                "SELECT id, pending_command, bowl_weight_g, bowl_capacity_ml, fill_low_pct, fill_target_pct, calibration "
                 "FROM devices WHERE mac_address = %s", (mac,))
             row = cur.fetchone()
             if not row:
@@ -148,6 +148,7 @@ def get_device_config(x_device_mac: str = Query(...), wifi_ssid: str = Query(Non
     return {
         "bowl_weight_g":    row["bowl_weight_g"],
         "bowl_capacity_ml": row["bowl_capacity_ml"],
+        "fill_low_pct":     row["fill_low_pct"],
         "fill_target_pct":  row["fill_target_pct"],
         "calibration":      row["calibration"],
         "command":          command,
