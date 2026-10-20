@@ -62,3 +62,26 @@ def get_latest_reading(device_id: int):
         "tank_low": row["tank_low"],
         "recorded_at": str(row["recorded_at"]),
     }
+
+@router.get("/devices/{device_id}/readings/intake/today")
+def get_today_intake(device_id: int):
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(
+                "SELECT weight_g FROM readings "
+                "WHERE device_id = %s AND DATE(recorded_at) = CURDATE() "
+                "ORDER BY recorded_at ASC",
+                (device_id,),
+            )
+            rows = cur.fetchall()
+
+    if len(rows) < 2:
+        return {"total_ml": 0}
+
+    total = 0.0
+    for i in range(1, len(rows)):
+        diff = rows[i - 1]["weight_g"] - rows[i]["weight_g"]
+        if diff > 3.0:
+            total += diff
+
+    return {"total_ml": round(total)}
