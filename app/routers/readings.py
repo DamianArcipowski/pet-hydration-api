@@ -22,6 +22,7 @@ async def post_reading(request: Request, x_device_mac=Header(..., alias="x-devic
     weight_g = body.get("weight_g", 0)
     valve_open = body.get("valve_open", 0)
     tank_low = body.get("tank_low", 0)
+    calibrated = body.get("calibrated", 0)
 
     with get_db() as conn:
         with get_cursor(conn) as cur:
@@ -37,9 +38,9 @@ async def post_reading(request: Request, x_device_mac=Header(..., alias="x-devic
 
             device_id = device["id"]
             cur.execute(
-                "INSERT INTO readings (device_id, weight_g, valve_open, tank_low) "
-                "VALUES (%s, %s, %s, %s)",
-                (device_id, weight_g, valve_open, tank_low),
+                "INSERT INTO readings (device_id, weight_g, valve_open, tank_low, calibrated) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (device_id, weight_g, valve_open, tank_low, calibrated),
             )
 
 @router.get("/devices/{device_id}/readings/latest")
@@ -69,7 +70,7 @@ def get_today_intake(device_id: int):
         with get_cursor(conn) as cur:
             cur.execute(
                 "SELECT weight_g FROM readings "
-                "WHERE device_id = %s AND DATE(recorded_at) = CURDATE() "
+                "WHERE device_id = %s AND DATE(recorded_at) = CURDATE() AND calibrated = 1 "
                 "ORDER BY recorded_at ASC",
                 (device_id,),
             )

@@ -43,6 +43,7 @@ CREATE TABLE readings (
     weight_g    FLOAT NOT NULL,
     valve_open  TINYINT(1) DEFAULT 0,
     tank_low    TINYINT(1) DEFAULT 0,
+    calibrated  TINYINT(1) DEFAULT 0,
     recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
 );
