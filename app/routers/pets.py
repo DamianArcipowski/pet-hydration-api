@@ -84,5 +84,55 @@ async def add_pet_weight(device_id: int, request: Request, user_id: int = Query(
                 (pet["id"], float(weight_kg)),
             )
             new_id = cur.lastrowid
-
     return {"id": new_id, "weight_kg": float(weight_kg)}
+
+@router.get("/devices/{device_id}/pet/weight/history")
+def get_pet_weight_history(device_id: int, period: str = Query("week")):
+    from datetime import date, timedelta
+
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute("SELECT id FROM pets WHERE device_id = %s", (device_id,))
+            pet = cur.fetchone()
+            if not pet:
+                raise HTTPException(status_code=404, detail="No pet profile yet")
+
+            if period == "day":
+                cur.execute(
+                    "SELECT HOUR(measured_at) AS bucket, "
+                    "       SUBSTRING_INDEX(GROUP_CONCAT(weight_kg ORDER BY measured_at DESC), ',', 1) AS weight_kg "
+                    "FROM pet_weight_log "
+                    "WHERE pet_id = %s AND DATE(measured_at) = CURDATE() "
+                    "GROUP BY bucket "
+                    "ORDER BY bucket ASC",
+                    (pet["id"],),
+                )
+                rows = cur.fetchall()
+                buckets = {r["bucket"]: float(r["weight_kg"]) for r in rows}
+                data = [
+                    {"label": f"{h:02d}:00", "value": buckets.get(h, None)}
+                    for h in range(24)
+                ]
+
+            else:
+                days = 7 if period == "week" else 30
+                cur.execute(
+                    "SELECT DATE(measured_at) AS day, "
+                    "       SUBSTRING_INDEX(GROUP_CONCAT(weight_kg ORDER BY measured_at DESC), ',', 1) AS weight_kg "
+                    "FROM pet_weight_log "
+                    "WHERE pet_id = %s AND measured_at >= CURDATE() - INTERVAL %s DAY "
+                    "GROUP BY day "
+                    "ORDER BY day ASC",
+                    (pet["id"], days - 1),
+                )
+                rows = cur.fetchall()
+                by_day = {str(r["day"]): float(r["weight_kg"]) for r in rows}
+                today = date.today()
+                data = []
+                for i in range(days - 1, -1, -1):
+                    d = today - timedelta(days=i)
+                    data.append({
+                        "label": d.strftime("%d.%m"),
+                        "value": by_day.get(str(d), None),
+                    })
+    return {"period": period, "data": data}

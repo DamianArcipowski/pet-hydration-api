@@ -84,5 +84,70 @@ def get_today_intake(device_id: int):
         diff = rows[i - 1]["weight_g"] - rows[i]["weight_g"]
         if diff > 3.0:
             total += diff
-
     return {"total_ml": round(total)}
+
+@router.get("/devices/{device_id}/readings/intake")
+def get_intake(device_id: int, period: str = Query("day")):
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            if period == "day":
+                cur.execute(
+                    "SELECT HOUR(recorded_at) AS bucket, weight_g "
+                    "FROM readings "
+                    "WHERE device_id = %s AND DATE(recorded_at) = CURDATE() AND calibrated = 1 "
+                    "ORDER BY recorded_at ASC",
+                    (device_id,),
+                )
+                rows = cur.fetchall()
+                buckets = {h: [] for h in range(24)}
+                for r in rows:
+                    buckets[r["bucket"]].append(r["weight_g"])
+                data = []
+                for h in range(24):
+                    data.append({"label": f"{h:02d}:00", "value": sum_drops(buckets[h])})
+
+            elif period == "week":
+                cur.execute(
+                    "SELECT DATE(recorded_at) AS day, weight_g "
+                    "FROM readings "
+                    "WHERE device_id = %s AND recorded_at >= CURDATE() - INTERVAL 6 DAY AND calibrated = 1 "
+                    "ORDER BY recorded_at ASC",
+                    (device_id,),
+                )
+                data = daily_buckets(cur.fetchall(), days=7)
+
+            elif period == "month":
+                cur.execute(
+                    "SELECT DATE(recorded_at) AS day, weight_g "
+                    "FROM readings "
+                    "WHERE device_id = %s AND recorded_at >= CURDATE() - INTERVAL 29 DAY AND calibrated = 1 "
+                    "ORDER BY recorded_at ASC",
+                    (device_id,),
+                )
+                data = daily_buckets(cur.fetchall(), days=30)
+
+    total = sum(d["value"] for d in data)
+    return {"period": period, "total": round(total), "data": data}
+
+
+def sum_drops(weights, threshold=3.0):
+    total = 0.0
+    for i in range(1, len(weights)):
+        diff = weights[i - 1] - weights[i]
+        if diff > threshold:
+            total += diff
+    return round(total)
+
+
+def daily_buckets(rows, days):
+    from datetime import date, timedelta
+    from collections import defaultdict
+    grouped = defaultdict(list)
+    for r in rows:
+        grouped[str(r["day"])].append(r["weight_g"])
+    today = date.today()
+    result = []
+    for i in range(days - 1, -1, -1):
+        d = today - timedelta(days=i)
+        result.append({"label": d.strftime("%d.%m"), "value": sum_drops(grouped.get(str(d), []))})
+    return result
