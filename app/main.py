@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import devices, readings, pets
+from routers import auth, devices, readings, pets
 
 app = FastAPI()
 
@@ -15,3 +15,4 @@ app.add_middleware(
 app.include_router(devices.router)
 app.include_router(readings.router)
 app.include_router(pets.router)
+app.include_router(auth.router)

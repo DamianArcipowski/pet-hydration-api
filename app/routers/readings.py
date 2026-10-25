@@ -1,7 +1,8 @@
 import re
 import json
-from fastapi import APIRouter, HTTPException, Header, Request, Query
+from fastapi import APIRouter, HTTPException, Header, Request, Query, Depends
 from database import get_db, get_cursor
+from app.security import assert_device_owner, current_user_id
 
 router = APIRouter(tags=["readings"])
 
@@ -44,7 +45,8 @@ async def post_reading(request: Request, x_device_mac=Header(..., alias="x-devic
             )
 
 @router.get("/devices/{device_id}/readings/latest")
-def get_latest_reading(device_id: int):
+def get_latest_reading(device_id: int, user_id: int = Depends(current_user_id)):
+    assert_device_owner(device_id, user_id)
     with get_db() as conn:
         with get_cursor(conn) as cur:
             cur.execute(

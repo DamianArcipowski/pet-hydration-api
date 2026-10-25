@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from database import get_db, get_cursor
+from app.security import assert_device_owner, current_user_id
 
 router = APIRouter(tags=["pets"])
 
 @router.post("/devices/{device_id}/pet", status_code=201)
-async def create_pet(device_id: int, request: Request, user_id: int = Query(0)):
+async def create_pet(device_id: int, request: Request, user_id: int = Depends(current_user_id)):
+    assert_device_owner(device_id, user_id)
     body = await request.json()
     name = body.get("name", "").strip()
     weight_kg = body.get("weight_kg", None)
@@ -36,7 +38,8 @@ async def create_pet(device_id: int, request: Request, user_id: int = Query(0)):
             return {"id": row["id"], "device_id": row["device_id"], "name": row["name"], "weight_kg": weight_kg}
 
 @router.get("/devices/{device_id}/pet")
-def get_pet(device_id: int, user_id: int = Query(0)):
+def get_pet(device_id: int, user_id: int = Depends(current_user_id)):
+    assert_device_owner(device_id, user_id)
     with get_db() as conn:
         with get_cursor(conn) as cur:
             cur.execute("SELECT id FROM devices WHERE id = %s AND user_id = %s", (device_id, user_id))
@@ -61,7 +64,8 @@ def get_pet(device_id: int, user_id: int = Query(0)):
             }
             
 @router.post("/devices/{device_id}/pet/weight", status_code=201)
-async def add_pet_weight(device_id: int, request: Request, user_id: int = Query(0)):
+async def add_pet_weight(device_id: int, request: Request, user_id: int = Depends(current_user_id)):
+    assert_device_owner(device_id, user_id)
     body = await request.json()
     weight_kg = body.get("weight_kg")
 
@@ -87,7 +91,8 @@ async def add_pet_weight(device_id: int, request: Request, user_id: int = Query(
     return {"id": new_id, "weight_kg": float(weight_kg)}
 
 @router.get("/devices/{device_id}/pet/weight/history")
-def get_pet_weight_history(device_id: int, period: str = Query("week")):
+def get_pet_weight_history(device_id: int, period: str = Query("week"), user_id: int = Depends(current_user_id)):
+    assert_device_owner(device_id, user_id)
     from datetime import date, timedelta
 
     with get_db() as conn:
