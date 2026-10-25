@@ -7,6 +7,13 @@ CREATE TABLE users (
     password    VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE sessions (
+    token      CHAR(64) PRIMARY KEY,
+    user_id    INT UNSIGNED NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE devices (
     id                INT AUTO_INCREMENT PRIMARY KEY,
     mac_address       VARCHAR(17) NOT NULL UNIQUE,
