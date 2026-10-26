@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from database import get_db, get_cursor
-from app.security import assert_device_owner, current_user_id
+from security import assert_device_owner, current_user_id
 
 router = APIRouter(tags=["pets"])
 

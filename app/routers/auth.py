@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from app.database import get_db, get_cursor
-from app.security import (
+from database import get_db, get_cursor
+from security import (
     EMAIL_REGEX, current_user_id, hash_password, new_token, token_from_header, verify_password,
 )
 

@@ -1,15 +1,14 @@
 import re
 from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from database import get_db, get_cursor
-from app.security import assert_device_owner, current_user_id
+from security import assert_device_owner, current_user_id
 
 router = APIRouter(tags=["devices"])
 
 MAC_REGEX = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
 @router.get("/devices")
-def list_devices(device_id: int, user_id=Query(0)):
-    assert_device_owner(device_id, user_id)
+def list_devices(user_id: int = Depends(current_user_id)):
     with get_db() as conn:
         with get_cursor(conn) as cur:
             cur.execute(

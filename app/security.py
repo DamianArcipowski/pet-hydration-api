@@ -3,7 +3,7 @@ import hmac
 import re
 import secrets
 from fastapi import Header, HTTPException
-from app.database import get_db, get_cursor
+from database import get_db, get_cursor
 
 PBKDF2_ITERATIONS = 200_000
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
