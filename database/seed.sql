@@ -9,7 +9,7 @@ CREATE TABLE users (
 
 CREATE TABLE sessions (
     token      CHAR(64) PRIMARY KEY,
-    user_id    INT UNSIGNED NOT NULL,
+    user_id    INT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
