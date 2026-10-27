@@ -1,7 +1,7 @@
 import re
 from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from database import get_db, get_cursor
-from security import assert_device_owner, current_user_id
+from security import current_user_id
 
 router = APIRouter(tags=["devices"])
 
@@ -40,8 +40,7 @@ def list_pending():
 
 
 @router.post("/pending-devices/claim", status_code=201)
-async def claim_pending(device_id: int, request: Request, user_id=Query(0)):
-    assert_device_owner(device_id, user_id)
+async def claim_pending(request: Request, user_id: int = Depends(current_user_id)):
     body = await request.json()
     mac = body.get("mac_address", "").upper().strip()
     name = body.get("name", "")
@@ -86,7 +85,6 @@ async def claim_pending(device_id: int, request: Request, user_id=Query(0)):
 
 @router.post("/devices/{device_id}/tare", status_code=204)
 def tare_device(device_id: int, user_id: int = Depends(current_user_id)):
-    assert_device_owner(device_id, user_id)
     with get_db() as conn:
         with get_cursor(conn) as cur:
             cur.execute(
@@ -96,7 +94,6 @@ def tare_device(device_id: int, user_id: int = Depends(current_user_id)):
 
 @router.patch("/devices/{device_id}")
 async def update_device(device_id: int, request: Request, user_id: int = Depends(current_user_id)):
-    assert_device_owner(device_id, user_id)
     body = await request.json()
     allowed = {"name", "bowl_capacity_ml", "fill_low_pct", "fill_target_pct", "wifi_ssid"}
     fields = {k: v for k, v in body.items() if k in allowed and v is not None}
