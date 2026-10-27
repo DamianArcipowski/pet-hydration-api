@@ -71,3 +71,11 @@ CREATE TABLE pending_devices (
     mac_address VARCHAR(17) PRIMARY KEY,
     first_seen  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE password_resets (
+    user_id    INT      NOT NULL PRIMARY KEY,
+    code_hash  CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts   INT      NOT NULL DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
