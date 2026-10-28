@@ -95,7 +95,7 @@ def tare_device(device_id: int, user_id: int = Depends(current_user_id)):
 @router.patch("/devices/{device_id}")
 async def update_device(device_id: int, request: Request, user_id: int = Depends(current_user_id)):
     body = await request.json()
-    allowed = {"name", "bowl_capacity_ml", "fill_low_pct", "fill_target_pct", "wifi_ssid"}
+    allowed = {"name", "bowl_weight_g", "bowl_capacity_ml", "fill_target_pct", "wifi_ssid"}
     fields = {k: v for k, v in body.items() if k in allowed and v is not None}
 
     if not fields:

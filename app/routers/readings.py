@@ -50,7 +50,7 @@ def get_latest_reading(device_id: int, user_id: int = Depends(current_user_id)):
     with get_db() as conn:
         with get_cursor(conn) as cur:
             cur.execute(
-                "SELECT id, device_id, weight_g, valve_open, tank_low, recorded_at "
+                "SELECT id, device_id, weight_g, valve_open, tank_low, calibrated, recorded_at "
                 "FROM readings WHERE device_id = %s ORDER BY recorded_at DESC LIMIT 1",
                 (device_id,),
             )
@@ -58,11 +58,12 @@ def get_latest_reading(device_id: int, user_id: int = Depends(current_user_id)):
     if not row:
         raise HTTPException(status_code=404, detail="No readings yet")
     return {
-        "id": row["id"],
-        "device_id": row["device_id"],
-        "weight_g": row["weight_g"],
-        "valve_open": row["valve_open"],
-        "tank_low": row["tank_low"],
+        "id":          row["id"],
+        "device_id":   row["device_id"],
+        "weight_g":    row["weight_g"],
+        "valve_open":  row["valve_open"],
+        "tank_low":    row["tank_low"],
+        "calibrated":  row["calibrated"],
         "recorded_at": str(row["recorded_at"]),
     }
 
