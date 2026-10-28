@@ -4,7 +4,8 @@ import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from database import get_db, get_cursor
 from security import (
-    EMAIL_REGEX, current_user_id, hash_password, new_token, token_from_header, verify_password,
+    EMAIL_REGEX, SESSION_IDLE_DAYS, current_user_id, hash_password, new_token,
+    token_from_header, verify_password,
 )
 from mailer import send_email
 
@@ -25,9 +26,16 @@ async def read_credentials(request: Request):
     return email, password
 
 
-def create_session(cur, user_id: int = Depends(current_user_id)):
+def create_session(cur, user_id):
+    cur.execute(
+        "DELETE FROM sessions WHERE last_used_at < UTC_TIMESTAMP() - INTERVAL %s DAY",
+        (SESSION_IDLE_DAYS,),
+    )
     token = new_token()
-    cur.execute("INSERT INTO sessions (token, user_id) VALUES (%s, %s)", (token, user_id))
+    cur.execute(
+        "INSERT INTO sessions (token, user_id, last_used_at) VALUES (%s, %s, UTC_TIMESTAMP())",
+        (token, user_id),
+    )
     return token
 
 

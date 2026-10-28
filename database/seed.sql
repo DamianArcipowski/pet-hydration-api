@@ -8,9 +8,10 @@ CREATE TABLE users (
 );
 
 CREATE TABLE sessions (
-    token      CHAR(64) PRIMARY KEY,
-    user_id    INT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    token         CHAR(64) PRIMARY KEY,
+    user_id       INT NOT NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_used_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

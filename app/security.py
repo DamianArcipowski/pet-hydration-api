@@ -7,11 +7,14 @@ from database import get_db, get_cursor
 
 PBKDF2_ITERATIONS = 200_000
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+SESSION_IDLE_DAYS = 7
+
 
 def hash_password(password):
     salt = secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ITERATIONS)
     return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt.hex()}${digest.hex()}"
+
 
 def verify_password(password, stored):
     try:
@@ -23,8 +26,10 @@ def verify_password(password, stored):
     digest = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), int(iterations))
     return hmac.compare_digest(digest.hex(), digest_hex)
 
+
 def new_token():
     return secrets.token_hex(32)
+
 
 def token_from_header(authorization):
     scheme, _, token = authorization.partition(" ")
@@ -32,15 +37,27 @@ def token_from_header(authorization):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return token.strip()
 
+
 def current_user_id(authorization: str = Header("")):
     token = token_from_header(authorization)
     with get_db() as conn:
         with get_cursor(conn) as cur:
-            cur.execute("SELECT user_id FROM sessions WHERE token = %s", (token,))
+            cur.execute(
+                "SELECT user_id FROM sessions "
+                "WHERE token = %s AND last_used_at > UTC_TIMESTAMP() - INTERVAL %s DAY",
+                (token, SESSION_IDLE_DAYS),
+            )
             row = cur.fetchone()
+            if row:
+                cur.execute(
+                    "UPDATE sessions SET last_used_at = UTC_TIMESTAMP() "
+                    "WHERE token = %s AND last_used_at < UTC_TIMESTAMP() - INTERVAL 1 HOUR",
+                    (token,),
+                )
     if not row:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
     return row["user_id"]
+
 
 def assert_device_owner(device_id, user_id):
     with get_db() as conn:
