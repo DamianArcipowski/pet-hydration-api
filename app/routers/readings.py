@@ -24,6 +24,7 @@ async def post_reading(request: Request, x_device_mac=Header(..., alias="x-devic
     valve_open = body.get("valve_open", 0)
     tank_low = body.get("tank_low", 0)
     calibrated = body.get("calibrated", 0)
+    ssid = str(body.get("ssid") or "").strip()[:64]
 
     with get_db() as conn:
         with get_cursor(conn) as cur:
@@ -43,6 +44,14 @@ async def post_reading(request: Request, x_device_mac=Header(..., alias="x-devic
                 "VALUES (%s, %s, %s, %s, %s)",
                 (device_id, weight_g, valve_open, tank_low, calibrated),
             )
+            
+            if ssid:
+                cur.execute(
+                    "UPDATE devices SET wifi_ssid = %s "
+                    "WHERE id = %s AND (wifi_ssid IS NULL OR wifi_ssid <> %s)",
+                    (ssid, device_id, ssid),
+                )
+                
 
 @router.get("/devices/{device_id}/readings/latest")
 def get_latest_reading(device_id: int, user_id: int = Depends(current_user_id)):
@@ -67,6 +76,7 @@ def get_latest_reading(device_id: int, user_id: int = Depends(current_user_id)):
         "recorded_at": str(row["recorded_at"]),
     }
 
+
 @router.get("/devices/{device_id}/readings/intake/today")
 def get_today_intake(device_id: int):
     with get_db() as conn:
@@ -88,6 +98,7 @@ def get_today_intake(device_id: int):
         if diff > 3.0:
             total += diff
     return {"total_ml": round(total)}
+
 
 @router.get("/devices/{device_id}/readings/intake")
 def get_intake(device_id: int, period: str = Query("day")):

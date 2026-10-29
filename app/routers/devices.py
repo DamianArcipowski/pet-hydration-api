@@ -166,3 +166,15 @@ async def tare_result(request: Request, x_device_mac: str = Query(...)):
                 "UPDATE devices SET bowl_weight_g = %s WHERE mac_address = %s",
                 (bowl_weight_g, mac),
             )
+
+
+@router.post("/devices/{device_id}/wifi-reset", status_code=204)
+def wifi_reset_device(device_id: int, user_id: int = Depends(current_user_id)):
+    with get_db() as conn:
+        with get_cursor(conn) as cur:
+            cur.execute(
+                "UPDATE devices SET pending_command = 'wifi_reset' WHERE id = %s AND user_id = %s",
+                (device_id, user_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Device not found")
