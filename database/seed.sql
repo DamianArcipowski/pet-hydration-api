@@ -20,7 +20,7 @@ CREATE TABLE devices (
     mac_address       VARCHAR(17) NOT NULL UNIQUE,
     user_id           INT NOT NULL,
     name              VARCHAR(50),
-    pending_command   ENUM('tare') NULL DEFAULT NULL,
+    pending_command   ENUM('tare', 'zero', 'wifi_reset') NULL DEFAULT NULL,
     calibration       FLOAT NULL DEFAULT NULL,
     bowl_weight_g     FLOAT NOT NULL DEFAULT 0, 
     bowl_capacity_ml  INT NOT NULL DEFAULT 0,
