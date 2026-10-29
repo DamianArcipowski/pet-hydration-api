@@ -1,5 +1,7 @@
-from mysql.connector.pooling import MySQLConnectionPool
 from contextlib import contextmanager
+
+from mysql.connector.pooling import MySQLConnectionPool
+
 from config import settings
 
 _pool = MySQLConnectionPool(
@@ -13,7 +15,7 @@ _pool = MySQLConnectionPool(
     charset="utf8mb4",
     collation="utf8mb4_unicode_ci",
     autocommit=False,
-    time_zone="+02:00",
+    time_zone="+01:00",
 )
 
 

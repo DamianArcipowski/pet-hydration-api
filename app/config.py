@@ -1,5 +1,6 @@
 import os
 
+
 class Settings:
     DB_HOST = os.getenv("DB_HOST")
     DB_PORT = int(os.getenv("DB_PORT"))
@@ -11,5 +12,6 @@ class Settings:
     SMTP_USER = os.getenv("SMTP_USER")
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
     SMTP_FROM = os.getenv("SMTP_FROM")
+
 
 settings = Settings()

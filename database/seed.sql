@@ -22,7 +22,7 @@ CREATE TABLE devices (
     name              VARCHAR(50),
     pending_command   ENUM('tare', 'zero', 'wifi_reset') NULL DEFAULT NULL,
     calibration       FLOAT NULL DEFAULT NULL,
-    bowl_weight_g     FLOAT NOT NULL DEFAULT 0, 
+    bowl_weight_g     FLOAT NOT NULL DEFAULT 0,
     bowl_capacity_ml  INT NOT NULL DEFAULT 0,
     fill_low_pct      FLOAT DEFAULT 0.20,
     fill_target_pct   FLOAT DEFAULT 0.80,

@@ -2,11 +2,14 @@ import hashlib
 import hmac
 import re
 import secrets
+
 from fastapi import Header, HTTPException
-from database import get_db, get_cursor
+
+from database import get_cursor, get_db
 
 PBKDF2_ITERATIONS = 200_000
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+MAC_REGEX = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 SESSION_IDLE_DAYS = 7
 
 
@@ -23,7 +26,9 @@ def verify_password(password, stored):
         return False
     if algo != "pbkdf2_sha256":
         return False
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), int(iterations))
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode(), bytes.fromhex(salt_hex), int(iterations)
+    )
     return hmac.compare_digest(digest.hex(), digest_hex)
 
 
@@ -40,28 +45,28 @@ def token_from_header(authorization):
 
 def current_user_id(authorization: str = Header("")):
     token = token_from_header(authorization)
-    with get_db() as conn:
-        with get_cursor(conn) as cur:
+    with get_db() as conn, get_cursor(conn) as cur:
+        cur.execute(
+            "SELECT user_id FROM sessions "
+            "WHERE token = %s AND last_used_at > UTC_TIMESTAMP() - INTERVAL %s DAY",
+            (token, SESSION_IDLE_DAYS),
+        )
+        row = cur.fetchone()
+        if row:
             cur.execute(
-                "SELECT user_id FROM sessions "
-                "WHERE token = %s AND last_used_at > UTC_TIMESTAMP() - INTERVAL %s DAY",
-                (token, SESSION_IDLE_DAYS),
+                "UPDATE sessions SET last_used_at = UTC_TIMESTAMP() "
+                "WHERE token = %s AND last_used_at < UTC_TIMESTAMP() - INTERVAL 1 HOUR",
+                (token,),
             )
-            row = cur.fetchone()
-            if row:
-                cur.execute(
-                    "UPDATE sessions SET last_used_at = UTC_TIMESTAMP() "
-                    "WHERE token = %s AND last_used_at < UTC_TIMESTAMP() - INTERVAL 1 HOUR",
-                    (token,),
-                )
     if not row:
         raise HTTPException(status_code=401, detail="Invalid or expired session")
     return row["user_id"]
 
 
 def assert_device_owner(device_id, user_id):
-    with get_db() as conn:
-        with get_cursor(conn) as cur:
-            cur.execute("SELECT id FROM devices WHERE id = %s AND user_id = %s", (device_id, user_id))
-            if not cur.fetchone():
-                raise HTTPException(status_code=404, detail="Device not found")
+    with get_db() as conn, get_cursor(conn) as cur:
+        cur.execute(
+            "SELECT id FROM devices WHERE id = %s AND user_id = %s", (device_id, user_id)
+        )
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Device not found")
